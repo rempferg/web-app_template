@@ -1,5 +1,9 @@
 # Setup for a Web-Application based on Angular, FastAPI, PostgreSQL, and Ubuntu 24.04 Server
 
+These instructions are self-contained and should be sufficient to reproduce the whole setup. The additional code for the `angular-frontend` and `fastapi-backend` only exist to save time.
+
+Demo: https://new.project-g.de
+
 ## Ubuntu 24.04
 
 Set up a server with stock Ubuntu 24.04 Server.

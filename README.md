@@ -386,7 +386,6 @@ import { MatTooltipModule } from '@angular/material/tooltip';
   `
 })
 export class RestComponent {
-  columnsToDisplay = ['id', 'message'];
   responses = [];
 
   constructor(private http : HttpClient) {}

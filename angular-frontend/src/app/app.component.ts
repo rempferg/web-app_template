@@ -14,9 +14,10 @@ import { MatTooltipModule } from '@angular/material/tooltip';
     <button mat-raised-button matTooltip="Fetches messages from a PostgreSQL database through a FastAPI REST backend" (click)="addResponse()">REST request</button><br><br>
     @for (response of responses; track response) {
       <mat-card appearance="outlined">
-        <mat-card-header>Message {{ response["id"] }}</mat-card-header>
+        <mat-card-header><span class="mat-label-small">Message {{ response["id"] }}</span></mat-card-header>
         <mat-card-content>{{ response["message"] }}</mat-card-content>
       </mat-card>
+      <br>
     }
   `
 })

@@ -1,10 +1,10 @@
 from fastapi import FastAPI
 import psycopg2
 
-conn = psycopg2.connect(database="mydatabase",
+conn = psycopg2.connect(database="fastapitest",
                         host="localhost",
                         user="fastapitest",
-                        password="Fc5h4L",
+                        password="myPassword",
                         port="5432")
 
 app = FastAPI()
@@ -15,7 +15,7 @@ app.mount("/api", subapi)
 @subapi.get("/")
 async def root():
     cursor = conn.cursor()
-    cursor.execute("SELECT COALESCE(JSON_AGG(r), '[]'::json) FROM (SELECT id, message, firstname FROM messages, persons where messages.id = persons.personid) r")
+    cursor.execute('''SELECT COALESCE(JSON_AGG(r), '[]'::json) FROM (SELECT messages.id as "ID", message as "Message", CONCAT(firstname, ' ', lastname) as "Name" FROM messages, persons where messages.id = persons.id) r''')
     result = cursor.fetchone()[0]
     print(result)
     return result

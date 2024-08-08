@@ -67,7 +67,6 @@ Dynamically sets up firewall rules to ban IPs that are doing suspicious stuff fo
 ```
 apt install crowdsec
 apt install crowdsec-firewall-bouncer
-
 ```
 
 To see config:
@@ -76,7 +75,6 @@ To see config:
 cscli alerts list
 cscli decisions list
 nft list ruleset
-
 ```
 
 to unban everyone (if you have locked yourself out):
@@ -113,7 +111,6 @@ server {
     try_files $uri $uri/ /index.html;
   }
 }
-
 ```
 
 `cd /etc/nginx/sites-enabled/; rm default; ln -s ../sites-available/angular-test`
@@ -148,9 +145,17 @@ Postgres uses "roles" to manage access and expects a linux user, a postgres role
 
 `\c fastapitest`
 
-`create table messages(id int, message varchar(255));`
+`create table messages(id int, message varchar(255), person_id int);`
 
 `grant all on messages to fastapitest;`
+
+`create table messages(id int, message varchar(255), person_id int);`
+
+`grant all on messages to fastapitest;`
+
+`create table persons(id int, firstname varchar(255), lastname varchar(255));`
+
+`grant all on persons to fastapitest;`
 
 To delete a postgres user
 `drop owned by fastapitest;` removed all privileges
@@ -163,13 +168,13 @@ To delete a postgres user
 `apt install python3-fastapi`
 `apt install python3-psycopg2`
 
-into `fastapi_backend.py`
+into `/var/www/fastapi-backend/fastapi_backend.py`
 
 ```
 from fastapi import FastAPI
 import psycopg2
 
-conn = psycopg2.connect(database="myDatabase",
+conn = psycopg2.connect(database="fastapitest",
                         host="localhost",
                         user="fastapitest",
                         password="myPassword",
@@ -183,7 +188,7 @@ app.mount("/api", subapi)
 @subapi.get("/")
 async def root():
     cursor = conn.cursor()
-    cursor.execute("SELECT COALESCE(JSON_AGG(r), '[]'::json) FROM (SELECT * FROM messages) r")
+    cursor.execute('''SELECT COALESCE(JSON_AGG(r), '[]'::json) FROM (SELECT messages.id as "ID", message as "Message", CONCAT(firstname, ' ', lastname) as "Name" FROM messages, persons where messages.id = persons.id) r''')
     result = cursor.fetchone()[0]
     print(result)
     return result
@@ -207,7 +212,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 ```
 
 To test manually on server:
@@ -216,7 +220,7 @@ To test manually on server:
 
 To run manually on developer machine:
 `python3 -m uvicorn fastapi_backend:app --host 0.0.0.0 --port 8000 --reload`
-The reload option restarts the script automatically when you edit it.
+The reload option restarts the script automatically when you edit it. Running it this way allows you to connect to the backend with a browser.
 
 ### Make backend available through webserver
 
@@ -273,7 +277,6 @@ server {
 
 
 }
-
 ```
 
 `systemctl reload nginx`
@@ -309,7 +312,6 @@ Restart=always
 
 [Install]
 WantedBy=multi-user.target
-
 ```
 
 `systemctl enable fastapi-backend.service`
@@ -334,7 +336,6 @@ nvm install 20
 node -v # should print `v20.16.0`
 # verifies the right npm version is in the environment
 npm -v # should print `10.8.1`
-
 ```
 
 ### Setup Angular
@@ -365,34 +366,72 @@ Maybe add `padding: 1em;` for `body` in `App_dir/src/styles.css` the same file.
 Extend `App_dir/src/app/app.component.ts` by adding our component:
 
 ```
+import { Component, ViewChild, AfterViewInit } from '@angular/core';
+import { RouterOutlet } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { MatButtonModule } from '@angular/material/button';
-import { MatCardModule } from '@angular/material/card';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatTableModule } from '@angular/material/table';
+import { MatPaginator, MatPaginatorModule } from '@angular/material/paginator';
+import { MatTableDataSource } from '@angular/material/table';
+import { MatSort, MatSortModule } from '@angular/material/sort';
 
 
 @Component({
   standalone: true,
   selector: 'rest-component',
-  imports: [ MatButtonModule, MatTooltipModule, MatCardModule ],
+  imports: [ MatButtonModule, MatTooltipModule, MatTableModule, MatPaginatorModule, MatSortModule ],
   template: `
-    <button mat-raised-button matTooltip="Fetches messages from a PostgreSQL database through a fastapi REST backend" (click)="addResponse()">REST request</button><br><br>
-    @for (response of responses; track response) {
-      <mat-card appearance="outlined">
-        <mat-card-header>Message {{ response["id"] }}</mat-card-header>
-        <mat-card-content>{{ response["message"] }}</mat-card-content>
-      </mat-card>
-    }
+    <button mat-raised-button matTooltip="Fetches messages from a PostgreSQL database through a FastAPI REST backend" (click)="addResponse()">REST request</button>
+    <br><br>
+    <table #myTable mat-table [dataSource]="dataSource" matSort>
+      @for (column of columnsToDisplay; track column) {
+        <ng-container matColumnDef="{{column}}">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header> {{column}} </th>
+          <td mat-cell *matCellDef="let element"> {{element[column]}} </td>
+        </ng-container>
+        
+      }
+      <tr mat-header-row *matHeaderRowDef="columnsToDisplay"></tr>
+      <tr mat-row *matRowDef="let myRowData; columns: columnsToDisplay"></tr>
+    </table>
+    <mat-paginator [pageSizeOptions]="[5, 10, 20]"
+      showFirstLastButtons
+      aria-label="Select page of messages">
+    </mat-paginator>
   `
 })
-export class RestComponent {
-  responses = [];
+export class RestComponent implements AfterViewInit {
+  columnsToDisplay = ['ID', 'Name', 'Message'];
+  dataSource = new MatTableDataSource();
+
+  @ViewChild(MatPaginator) paginator!: MatPaginator;
+  @ViewChild(MatSort) sort!: MatSort;
 
   constructor(private http : HttpClient) {}
   
   addResponse() {
-    this.http.get<any>("api/").subscribe(data => this.responses = this.responses.concat(data));
+    this.http.get<any>("api/").subscribe(data => {
+      this.dataSource.data = this.dataSource.data.concat(data)
+    });
   }
+
+  ngAfterViewInit() {
+    this.dataSource.paginator = this.paginator;
+    this.dataSource.sort = this.sort;
+  }
+}
+
+
+@Component({
+  selector: 'app-root',
+  standalone: true,
+  imports: [RouterOutlet, RestComponent],
+  templateUrl: './app.component.html',
+  styleUrl: './app.component.css'
+})
+export class AppComponent {
+  title = 'angular-frontend';
 }
 ```
 
@@ -428,7 +467,6 @@ import { provideAnimationsAsync } from '@angular/platform-browser/animations/asy
 export const appConfig: ApplicationConfig = {
   providers: [provideZoneChangeDetection({ eventCoalescing: true }), provideRouter(routes), provideAnimationsAsync(), provideHttpClient()]
 };
-
 ```
 
 On developer machine with manually run fastapi change get request URI to:

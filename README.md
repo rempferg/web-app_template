@@ -157,6 +157,19 @@ Postgres uses "roles" to manage access and expects a linux user, a postgres role
 
 `grant all on persons to fastapitest;`
 
+Insert some data so we have something to look at:
+```
+insert into persons(id, firstname, lastname) values(1, 'Allison', 'Rempfer');
+insert into persons(id, firstname, lastname) values(2, 'Georg', 'Rempfer');
+insert into persons(id, firstname, lastname) values(3, 'Magnus', 'Rempfer');
+insert into persons(id, firstname, lastname) values(4, 'Benno', 'Rempfer');
+
+insert into messages(id, message, person_id) values(1, 'I ride 18km to work and back.', 1);
+insert into messages(id, message, person_id) values(2, 'I ride 5000+km a year.', 2);
+insert into messages(id, message, person_id) values(3, 'I ride 700m up with my papa.', 3);
+insert into messages(id, message, person_id) values(4, 'I ride at 20km/h with a rope!', 4);
+```
+
 To delete a postgres user
 `drop owned by fastapitest;` removed all privileges
 `drop user fastapitest;` removes user (only succeeds if no privileges are associated)

@@ -131,33 +131,29 @@ check whether certbot renewal job is there (`snap.certbot.renew`)
 
 Postgres pretty much can do everything MySQL can do, but can directly output JSON, which is why we use it.
 
-Postgres uses "roles" to manage access and expects a linux user, a postgres role, and a postgres database all with the same name.
-
 `apt install postgresql postgresql-contrib`
 
-`useradd fastapitest`
+Postgres uses "roles" to manage access and expects a linux user, a postgres role, and a postgres database all with the same name.
 
-`sudo -u postgres psql`
+```
+useradd fastapitest
+sudo -u postgres psql
+create user fastapitest with password 'myPassword';
+```
 
-`create user fastapitest with password 'myPassword';`
+Create database with tables and grant access rights
 
-`create database fastapitest;`
-
-`\c fastapitest`
-
-`create table messages(id int, message varchar(255), person_id int);`
-
-`grant all on messages to fastapitest;`
-
-`create table messages(id int, message varchar(255), person_id int);`
-
-`grant all on messages to fastapitest;`
-
-`create table persons(id int, firstname varchar(255), lastname varchar(255));`
-
-`grant all on persons to fastapitest;`
+```
+create database fastapitest;
+\c fastapitest
+create table messages(id int, message varchar(255), person_id int);
+grant all on messages to fastapitest;
+create table persons(id int, firstname varchar(255), lastname varchar(255));
+grant all on persons to fastapitest;
+```
 
 Insert some data so we have something to look at:
+
 ```
 insert into persons(id, firstname, lastname) values(1, 'Allison', 'Rempfer');
 insert into persons(id, firstname, lastname) values(2, 'Georg', 'Rempfer');

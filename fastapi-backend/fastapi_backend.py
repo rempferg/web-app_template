@@ -15,7 +15,7 @@ app.mount("/api", subapi)
 @subapi.get("/")
 async def root():
     cursor = conn.cursor()
-    cursor.execute('''SELECT COALESCE(JSON_AGG(r), '[]'::json) FROM (SELECT messages.id as "ID", message as "Message", CONCAT(firstname, ' ', lastname) as "Name" FROM messages, persons where messages.id = persons.id) r''')
+    cursor.execute('''SELECT COALESCE(JSON_AGG(r), '[]'::json) FROM (SELECT messages.id as "ID", message as "Message", CONCAT(firstname, ' ', lastname) as "Name" FROM messages, persons where messages.person_id = persons.id) r''')
     result = cursor.fetchone()[0]
     print(result)
     return result

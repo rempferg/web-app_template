@@ -57,7 +57,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
       </ng-container>
       <tr mat-header-row *matHeaderRowDef="columnsToDisplay"></tr>
       <tr mat-row *matRowDef="let myRowData; columns: columnsToDisplay"></tr>
-    </table>Ex. It makes me feel...
+    </table>
     <mat-paginator [pageSizeOptions]="[5, 10, 20]"
       showFirstLastButtons
       aria-label="Select page of messages">

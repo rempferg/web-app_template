@@ -14,7 +14,7 @@ import { MatSort, MatSortModule } from '@angular/material/sort';
   selector: 'rest-component',
   imports: [ MatButtonModule, MatTooltipModule, MatTableModule, MatPaginatorModule, MatSortModule ],
   template: `
-    <button mat-raised-button matTooltip="Fetches messages from a PostgreSQL database through a FastAPI REST backend" (click)="addResponse()">REST request</button>
+    <button mat-raised-button matTooltip="Fetches messages from a PostgreSQL database through a FastAPI REST backend" (click)="loadList()">REST request</button>
     <br><br>
     <table #myTable mat-table [dataSource]="dataSource" matSort>
       @for (column of columnsToDisplay; track column) {
@@ -22,7 +22,6 @@ import { MatSort, MatSortModule } from '@angular/material/sort';
           <th mat-header-cell *matHeaderCellDef mat-sort-header> {{column}} </th>
           <td mat-cell *matCellDef="let element"> {{element[column]}} </td>
         </ng-container>
-        
       }
       <tr mat-header-row *matHeaderRowDef="columnsToDisplay"></tr>
       <tr mat-row *matRowDef="let myRowData; columns: columnsToDisplay"></tr>
@@ -41,9 +40,11 @@ export class RestComponent implements AfterViewInit {
   @ViewChild(MatSort) sort!: MatSort;
 
   constructor(private http : HttpClient) {}
-  
-  addResponse() {
-    this.http.get<any>("api/").subscribe(data => {
+
+  apiURI = "api/";
+    
+  loadList() {
+    this.http.get<any>(this.apiURI).subscribe(data => {
       this.dataSource.data = this.dataSource.data.concat(data)
     });
   }
@@ -51,6 +52,9 @@ export class RestComponent implements AfterViewInit {
   ngAfterViewInit() {
     this.dataSource.paginator = this.paginator;
     this.dataSource.sort = this.sort;
+    if(window.location.hostname == "localhost" || window.location.hostname == "127.0.0.1" || window.location.hostname == "0.0.0.0")
+      this.apiURI = "http://localhost:8000/api/";
+    this.loadList();
   }
 }
 

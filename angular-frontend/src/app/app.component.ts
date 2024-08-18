@@ -25,18 +25,18 @@ import { MatFormFieldModule } from '@angular/material/form-field';
       </mat-expansion-panel-header>
       <mat-form-field style="width:49%">
         <mat-label>First name</mat-label>
-        <input matInput>
+        <input matInput #firstname>
       </mat-form-field>
       <mat-form-field style="width:49%; margin-left:2%">
         <mat-label>Last name</mat-label>
-        <input matInput>
+        <input matInput #lastname>
       </mat-form-field>
       <br>
       <mat-form-field style="width:100%">
-        <mat-label>Leave a comment</mat-label>
-        <textarea matInput placeholder="Ex. It makes me feel..."></textarea>
+        <mat-label>Message</mat-label>
+        <textarea matInput #message></textarea>
       </mat-form-field>
-      <button mat-button matTooltip="Fetches messages from a PostgreSQL database through a FastAPI REST backend" (click)="loadList()">save</button>
+      <button mat-button matTooltip="Fetches messages from a PostgreSQL database through a FastAPI REST backend" (click)="addEntry(firstname.value, lastname.value, message.value)">save</button>
     </mat-expansion-panel>
     <table #myTable mat-table [dataSource]="dataSource" matSort>
       @for (column of columnsToDisplay; track column) {
@@ -57,7 +57,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
       </ng-container>
       <tr mat-header-row *matHeaderRowDef="columnsToDisplay"></tr>
       <tr mat-row *matRowDef="let myRowData; columns: columnsToDisplay"></tr>
-    </table>
+    </table>Ex. It makes me feel...
     <mat-paginator [pageSizeOptions]="[5, 10, 20]"
       showFirstLastButtons
       aria-label="Select page of messages">
@@ -82,7 +82,11 @@ export class RestComponent implements AfterViewInit {
   }
 
   deleteRow( id: number ) {
-    console.log("deleting ID " + id)
+    console.log("deleting ID " + id);
+  }
+
+  addEntry( firstname: string, lastname: string, message: string ) {
+    console.log("adding " + firstname + " " + lastname + " " + message);
   }
 
   ngAfterViewInit() {

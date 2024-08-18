@@ -7,22 +7,54 @@ import { MatTableModule } from '@angular/material/table';
 import { MatPaginator, MatPaginatorModule } from '@angular/material/paginator';
 import { MatTableDataSource } from '@angular/material/table';
 import { MatSort, MatSortModule } from '@angular/material/sort';
+import { MatIconModule } from '@angular/material/icon';
+import { MatExpansionModule } from '@angular/material/expansion';
+import { MatInputModule } from '@angular/material/input';
+import { MatFormFieldModule } from '@angular/material/form-field';
 
 
 @Component({
   standalone: true,
   selector: 'rest-component',
-  imports: [ MatButtonModule, MatTooltipModule, MatTableModule, MatPaginatorModule, MatSortModule ],
+  imports: [ MatButtonModule, MatTooltipModule, MatTableModule, MatPaginatorModule, MatSortModule, MatIconModule, MatExpansionModule, MatInputModule, MatFormFieldModule ],
   template: `
-    <button mat-raised-button matTooltip="Fetches messages from a PostgreSQL database through a FastAPI REST backend" (click)="loadList()">REST request</button>
-    <br><br>
+    <mat-expansion-panel hideToggle>
+      <mat-expansion-panel-header>
+        <mat-panel-title><mat-icon>add</mat-icon></mat-panel-title>
+        <mat-panel-description> Add an entry </mat-panel-description>
+      </mat-expansion-panel-header>
+      <mat-form-field style="width:49%">
+        <mat-label>First name</mat-label>
+        <input matInput>
+      </mat-form-field>
+      <mat-form-field style="width:49%; margin-left:2%">
+        <mat-label>Last name</mat-label>
+        <input matInput>
+      </mat-form-field>
+      <br>
+      <mat-form-field style="width:100%">
+        <mat-label>Leave a comment</mat-label>
+        <textarea matInput placeholder="Ex. It makes me feel..."></textarea>
+      </mat-form-field>
+      <button mat-button matTooltip="Fetches messages from a PostgreSQL database through a FastAPI REST backend" (click)="loadList()">save</button>
+    </mat-expansion-panel>
     <table #myTable mat-table [dataSource]="dataSource" matSort>
       @for (column of columnsToDisplay; track column) {
-        <ng-container matColumnDef="{{column}}">
-          <th mat-header-cell *matHeaderCellDef mat-sort-header> {{column}} </th>
-          <td mat-cell *matCellDef="let element"> {{element[column]}} </td>
-        </ng-container>
+        @if (column != 'Operations') {
+          <ng-container matColumnDef="{{column}}">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header> {{column}} </th>
+            <td mat-cell *matCellDef="let element"> {{element[column]}} </td>
+          </ng-container>
+        }
       }
+      <ng-container matColumnDef="Operations">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>  </th>
+        <td mat-cell *matCellDef="let element">
+          <button mat-icon-button aria-label="delete">
+            <mat-icon (click)="deleteRow(element['ID'])">delete</mat-icon>
+          </button>
+        </td>
+      </ng-container>
       <tr mat-header-row *matHeaderRowDef="columnsToDisplay"></tr>
       <tr mat-row *matRowDef="let myRowData; columns: columnsToDisplay"></tr>
     </table>
@@ -33,7 +65,7 @@ import { MatSort, MatSortModule } from '@angular/material/sort';
   `
 })
 export class RestComponent implements AfterViewInit {
-  columnsToDisplay = ['ID', 'Name', 'Message'];
+  columnsToDisplay = ['ID', 'Name', 'Message', 'Operations'];
   dataSource = new MatTableDataSource();
 
   @ViewChild(MatPaginator) paginator!: MatPaginator;
@@ -47,6 +79,10 @@ export class RestComponent implements AfterViewInit {
     this.http.get<any>(this.apiURI).subscribe(data => {
       this.dataSource.data = this.dataSource.data.concat(data)
     });
+  }
+
+  deleteRow( id: number ) {
+    console.log("deleting ID " + id)
   }
 
   ngAfterViewInit() {

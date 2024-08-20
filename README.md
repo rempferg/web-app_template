@@ -146,24 +146,9 @@ Create database with tables and grant access rights
 ```
 create database fastapitest;
 \c fastapitest
-create table messages(id int, message varchar(255), person_id int);
+create table messages(id serial primary key, firstname varchar(255), lastname varchar(255), message varchar(255));
 grant all on messages to fastapitest;
-create table persons(id int, firstname varchar(255), lastname varchar(255));
-grant all on persons to fastapitest;
-```
-
-Insert some data so we have something to look at:
-
-```
-insert into persons(id, firstname, lastname) values(1, 'Allison', 'Rempfer');
-insert into persons(id, firstname, lastname) values(2, 'Georg', 'Rempfer');
-insert into persons(id, firstname, lastname) values(3, 'Magnus', 'Rempfer');
-insert into persons(id, firstname, lastname) values(4, 'Benno', 'Rempfer');
-
-insert into messages(id, message, person_id) values(1, 'I ride 18km to work and back.', 1);
-insert into messages(id, message, person_id) values(2, 'I ride 5000+km a year.', 2);
-insert into messages(id, message, person_id) values(3, 'I ride 700m up with my papa.', 3);
-insert into messages(id, message, person_id) values(4, 'I ride at 20km/h with a rope!', 4);
+grant usage, select on sequence messages_id_seq to fastapitest;
 ```
 
 To delete a postgres user
@@ -181,7 +166,10 @@ into `/var/www/fastapi-backend/fastapi_backend.py`
 
 ```
 from fastapi import FastAPI
+from typing import Union
+from pydantic import BaseModel
 import psycopg2
+
 
 conn = psycopg2.connect(database="fastapitest",
                         host="localhost",
@@ -194,14 +182,40 @@ app = FastAPI()
 subapi = FastAPI()
 app.mount("/api", subapi)
 
+
 @subapi.get("/")
 async def root():
     cursor = conn.cursor()
-    cursor.execute('''SELECT COALESCE(JSON_AGG(r), '[]'::json) FROM (SELECT messages.id as "ID", message as "Message", CONCAT(firstname, ' ', lastname) as "Name" FROM messages, persons where messages.person_id = persons.id) r''')
+    cursor.execute('''SELECT COALESCE(JSON_AGG(r), '[]'::json) FROM (SELECT id as "ID", message as "Message", CONCAT(firstname, ' ', lastname) as "Name" FROM messages) r''')
     result = cursor.fetchone()[0]
+    cursor.close()
     print(result)
     return result
 
+
+class Item(BaseModel):
+    firstname: str
+    lastname: str
+    message: str
+
+@subapi.post("/")
+async def add(item: Item):
+    item_dict = item.dict()
+    print(item_dict)
+    cursor = conn.cursor()
+    cursor.execute('''INSERT INTO messages(firstname, lastname, message) VALUES(%(firstname)s, %(lastname)s, %(message)s)''', item_dict)
+    conn.commit()
+    cursor.close()
+    return 
+
+
+@subapi.delete("/{id}")
+async def delete(id: int):
+    cursor = conn.cursor()
+    cursor.execute('''DELETE FROM messages WHERE id = %s''', (id, ))
+    conn.commit()
+    cursor.close()
+    return
 
 # this allows requests towards your API from frontend websites not served from the same host as this backend.
 # access from non-browser clients is always possible.
@@ -379,28 +393,57 @@ import { Component, ViewChild, AfterViewInit } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { MatButtonModule } from '@angular/material/button';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatTableModule } from '@angular/material/table';
 import { MatPaginator, MatPaginatorModule } from '@angular/material/paginator';
 import { MatTableDataSource } from '@angular/material/table';
 import { MatSort, MatSortModule } from '@angular/material/sort';
+import { MatIconModule } from '@angular/material/icon';
+import { MatExpansionModule } from '@angular/material/expansion';
+import { MatInputModule } from '@angular/material/input';
 
 
 @Component({
   standalone: true,
   selector: 'rest-component',
-  imports: [ MatButtonModule, MatTooltipModule, MatTableModule, MatPaginatorModule, MatSortModule ],
+  imports: [ MatButtonModule, MatTableModule, MatPaginatorModule, MatSortModule, MatIconModule, MatExpansionModule, MatInputModule ],
   template: `
-    <button mat-raised-button matTooltip="Fetches messages from a PostgreSQL database through a FastAPI REST backend" (click)="addResponse()">REST request</button>
-    <br><br>
-    <table #myTable mat-table [dataSource]="dataSource" matSort>
+    <mat-expansion-panel hideToggle>
+      <mat-expansion-panel-header>
+        <mat-panel-title><mat-icon>add</mat-icon></mat-panel-title>
+        <mat-panel-description> Add an entry </mat-panel-description>
+      </mat-expansion-panel-header>
+      <mat-form-field style="width:49%">
+        <mat-label>First name</mat-label>
+        <input matInput #firstname>
+      </mat-form-field>
+      <mat-form-field style="width:49%; margin-left:2%">
+        <mat-label>Last name</mat-label>
+        <input matInput #lastname>
+      </mat-form-field>
+      <br>
+      <mat-form-field style="width:100%">
+        <mat-label>Message</mat-label>
+        <textarea matInput #message></textarea>
+      </mat-form-field>
+      <button mat-button (click)="addEntry(firstname.value, lastname.value, message.value)">save</button>
+    </mat-expansion-panel>
+    <table #myTable mat-table [dataSource]="dataSource" matSort matSortActive="ID" matSortDirection="desc">
       @for (column of columnsToDisplay; track column) {
-        <ng-container matColumnDef="{{column}}">
-          <th mat-header-cell *matHeaderCellDef mat-sort-header> {{column}} </th>
-          <td mat-cell *matCellDef="let element"> {{element[column]}} </td>
-        </ng-container>
-        
+        @if (column != 'Operations') {
+          <ng-container matColumnDef="{{column}}">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header> {{column}} </th>
+            <td mat-cell *matCellDef="let element"> {{element[column]}} </td>
+          </ng-container>
+        }
       }
+      <ng-container matColumnDef="Operations">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>  </th>
+        <td mat-cell *matCellDef="let element">
+          <button mat-icon-button aria-label="delete">
+            <mat-icon (click)="deleteRow(element['ID'])">delete</mat-icon>
+          </button>
+        </td>
+      </ng-container>
       <tr mat-header-row *matHeaderRowDef="columnsToDisplay"></tr>
       <tr mat-row *matRowDef="let myRowData; columns: columnsToDisplay"></tr>
     </table>
@@ -411,36 +454,47 @@ import { MatSort, MatSortModule } from '@angular/material/sort';
   `
 })
 export class RestComponent implements AfterViewInit {
-  columnsToDisplay = ['ID', 'Name', 'Message'];
+  columnsToDisplay = ['ID', 'Name', 'Message', 'Operations'];
   dataSource = new MatTableDataSource();
 
   @ViewChild(MatPaginator) paginator!: MatPaginator;
   @ViewChild(MatSort) sort!: MatSort;
 
   constructor(private http : HttpClient) {}
-  
-  addResponse() {
-    this.http.get<any>("api/").subscribe(data => {
-      this.dataSource.data = this.dataSource.data.concat(data)
+
+  apiURI = "api/";
+    
+  loadList() {
+    console.log("loading list");
+    this.http.get<any>(this.apiURI).subscribe(data => {
+      this.dataSource.data = data
     });
+  }
+
+  deleteRow( id: number ) {
+    console.log("deleting ID " + id);
+    this.http.delete<any>(this.apiURI + id).subscribe(response => this.loadList());
+  }
+
+  addEntry( firstname: string, lastname: string, message: string ) {
+    console.log("adding " + firstname + " " + lastname + " " + message);
+    let post_body = {
+      "firstname": firstname,
+      "lastname": lastname,
+      "message": message
+    };
+    this.http.post<any>(this.apiURI, post_body).subscribe(response => this.loadList());
   }
 
   ngAfterViewInit() {
     this.dataSource.paginator = this.paginator;
     this.dataSource.sort = this.sort;
+
+    if(location.port == "4200")
+      this.apiURI = "http://" + window.location.hostname + ":8000/api/";
+
+    this.loadList();
   }
-}
-
-
-@Component({
-  selector: 'app-root',
-  standalone: true,
-  imports: [RouterOutlet, RestComponent],
-  templateUrl: './app.component.html',
-  styleUrl: './app.component.css'
-})
-export class AppComponent {
-  title = 'angular-frontend';
 }
 ```
 
@@ -478,9 +532,6 @@ export const appConfig: ApplicationConfig = {
 };
 ```
 
-On developer machine with manually run fastapi change get request URI to:
-`this.http.get<any>("http://localhost:8000/api/").subscribe(data => this.responses = this.responses.concat(data));`
-
 ### Test on developer machine
 
 In App_dir:
@@ -489,6 +540,14 @@ In App_dir:
 Either type `o` and `enter` into the terminal or open `http://localhost:4200` with your browser.
 
 In this mode, the Web-App automatically updates in your browser when you change a source file. fastapi with the `--reload` option does the same. This makes development extremely convenient.
+
+To test the App on your developer machine with a smartphone:
+```
+sudo ufw allow 4200
+sudo ufw allow 8000
+ng serve --host 0.0.0.0
+```
+Then access `http://IPOFDEVMACHINE:4200`.
 
 ### Deploy Angular Frontend to server
 
@@ -514,12 +573,12 @@ Install `Angular DevTools` from browser extension store.
 1. Open another terminal and switch to the fronend directory
 1. Run `ng serve`. Once started, type `o` and `enter`. The browser should open your web app.
 1. Edit the front- and backend code. Whenever you save, changes in either the front- or backend should be visible and testable in the browser immediately.
-1. Change the backend URI in the frontend code from `/api` to `http://localhost:8000/api/`.
 1. Use the error messages on the terminal to debug compile time errors.
 1. Use the Angular DevTools Browser extension for debugging of runtime errors in the frontend.
 1. Attach a Python debugger to debug runtime errors of the backend (I haven't tried this, yet).
+1. Use the automatic API documentation and interactive testing at `http://localhost:8000/api/docs`.
 
 ## TODO
 
 * use version pinned fastapi from pip with custom env? no auto-updates but stable!
-* use version pinned sycopg2?
+* use version pinned psycopg2?

@@ -2,7 +2,6 @@ import { Component, ViewChild, AfterViewInit } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { MatButtonModule } from '@angular/material/button';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatTableModule } from '@angular/material/table';
 import { MatPaginator, MatPaginatorModule } from '@angular/material/paginator';
 import { MatTableDataSource } from '@angular/material/table';
@@ -10,13 +9,12 @@ import { MatSort, MatSortModule } from '@angular/material/sort';
 import { MatIconModule } from '@angular/material/icon';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { MatInputModule } from '@angular/material/input';
-import { MatFormFieldModule } from '@angular/material/form-field';
 
 
 @Component({
   standalone: true,
   selector: 'rest-component',
-  imports: [ MatButtonModule, MatTooltipModule, MatTableModule, MatPaginatorModule, MatSortModule, MatIconModule, MatExpansionModule, MatInputModule, MatFormFieldModule ],
+  imports: [ MatButtonModule, MatTableModule, MatPaginatorModule, MatSortModule, MatIconModule, MatExpansionModule, MatInputModule ],
   template: `
     <mat-expansion-panel hideToggle>
       <mat-expansion-panel-header>
@@ -36,9 +34,9 @@ import { MatFormFieldModule } from '@angular/material/form-field';
         <mat-label>Message</mat-label>
         <textarea matInput #message></textarea>
       </mat-form-field>
-      <button mat-button matTooltip="Fetches messages from a PostgreSQL database through a FastAPI REST backend" (click)="addEntry(firstname.value, lastname.value, message.value)">save</button>
+      <button mat-button (click)="addEntry(firstname.value, lastname.value, message.value)">save</button>
     </mat-expansion-panel>
-    <table #myTable mat-table [dataSource]="dataSource" matSort>
+    <table #myTable mat-table [dataSource]="dataSource" matSort matSortActive="ID" matSortDirection="desc">
       @for (column of columnsToDisplay; track column) {
         @if (column != 'Operations') {
           <ng-container matColumnDef="{{column}}">
@@ -76,24 +74,34 @@ export class RestComponent implements AfterViewInit {
   apiURI = "api/";
     
   loadList() {
+    console.log("loading list");
     this.http.get<any>(this.apiURI).subscribe(data => {
-      this.dataSource.data = this.dataSource.data.concat(data)
+      this.dataSource.data = data
     });
   }
 
   deleteRow( id: number ) {
     console.log("deleting ID " + id);
+    this.http.delete<any>(this.apiURI + id).subscribe(response => this.loadList());
   }
 
   addEntry( firstname: string, lastname: string, message: string ) {
     console.log("adding " + firstname + " " + lastname + " " + message);
+    let post_body = {
+      "firstname": firstname,
+      "lastname": lastname,
+      "message": message
+    };
+    this.http.post<any>(this.apiURI, post_body).subscribe(response => this.loadList());
   }
 
   ngAfterViewInit() {
     this.dataSource.paginator = this.paginator;
     this.dataSource.sort = this.sort;
-    if(window.location.hostname == "localhost" || window.location.hostname == "127.0.0.1" || window.location.hostname == "0.0.0.0")
-      this.apiURI = "http://localhost:8000/api/";
+
+    if(location.port == "4200")
+      this.apiURI = "http://" + window.location.hostname + ":8000/api/";
+
     this.loadList();
   }
 }

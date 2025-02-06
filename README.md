@@ -10,6 +10,8 @@ Set up a server with stock Ubuntu 24.04 Server.
 
 ### Automatic Updates
 
+`root@ubuntu:~# apt install unattended-upgrades`
+
 `root@ubuntu:~# vim /etc/apt/apt.conf.d/50unattended-upgrades`
 
 comment in

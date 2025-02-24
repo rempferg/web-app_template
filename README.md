@@ -279,19 +279,34 @@ server {
     root /var/www/angular-test/;
     try_files $uri $uri/ /index.html;
   }
+
+    listen 443 ssl; # managed by Certbot
+    ssl_certificate /etc/letsencrypt/live/new.project-g.de/fullchain.pem; # managed by Certbot
+    ssl_certificate_key /etc/letsencrypt/live/new.project-g.de/privkey.pem; # managed by Certbot
+    include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
+
+}
+server {
+    if ($host = new.project-g.de) {
+        return 301 https://$host$request_uri;
+    } # managed by Certbot
+
+
+  listen 80;
+
+  server_name mySubdomain.myDomain.myTLD
+
+  gzip on;
+    return 404; # managed by Certbot
+
+
 }
 ```
 
 `systemctl reload nginx`
 
-Frontend should respond under <http://mySubdomain.myDomain.myTLD/>. Backend should respond under <http://mySubdomain.myDomain.myTLD/api> (if it is running).
-
-### HTTPS
-
-```
-apt install certbot
-certbot --nginx
-```
+Backend should respond under <https://mySubdomain.myDomain.myTLD/api> (if it is running).
 
 ### Run Backend as a Systemd Service
 
